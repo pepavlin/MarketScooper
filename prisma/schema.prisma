@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceType {
+  REDDIT
+  HACKERNEWS
+  CSV
+  JSON
+}
+
+enum DocumentStatus {
+  PENDING
+  ANALYZED
+  ERROR
+  IGNORED
+}
+
+enum JobType {
+  INGESTION
+  ANALYSIS
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ReviewStatus {
+  NEW
+  REVIEWED
+  IGNORED
+}
+
+enum Severity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model Source {
+  id          String     @id @default(cuid())
+  name        String
+  type        SourceType
+  config      Json       @default("{}")
+  enabled     Boolean    @default(true)
+  lastFetchAt DateTime?
+  lastError   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  documents     RawDocument[]
+  processingJobs ProcessingJob[]
+}
+
+model RawDocument {
+  id         String         @id @default(cuid())
+  sourceId   String
+  externalId String
+  url        String?
+  title      String
+  content    String
+  author     String?
+  metadata   Json           @default("{}")
+  fetchedAt  DateTime       @default(now())
+  status     DocumentStatus @default(PENDING)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  source   Source          @relation(fields: [sourceId], references: [id])
+  analysis AnalysisResult?
+
+  @@unique([sourceId, externalId])
+  @@index([status])
+  @@index([sourceId])
+}
+
+model AnalysisResult {
+  id                    String       @id @default(cuid())
+  rawDocumentId         String       @unique
+  problemSummary        String
+  buyerSegment          String?
+  painLevel             Float
+  urgencySignal         Float
+  paymentSignal         Float
+  dissatisfactionSignal Float
+  solutionSearchSignal  Float
+  isPotentialOpportunity Boolean
+  reasoningSummary      String?
+  tags                  Json         @default("[]")
+  language              String?      @default("en")
+  confidence            Float
+  finalScore            Float
+  scoreBreakdown        Json         @default("{}")
+  reviewStatus          ReviewStatus @default(NEW)
+  modelUsed             String?
+  promptVersion         String?
+  retryCount            Int          @default(0)
+  processedAt           DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  rawDocument RawDocument @relation(fields: [rawDocumentId], references: [id])
+
+  @@index([finalScore(sort: Desc)])
+  @@index([reviewStatus])
+}
+
+model ProcessingJob {
+  id             String    @id @default(cuid())
+  type           JobType
+  status         JobStatus @default(PENDING)
+  sourceId       String?
+  totalItems     Int       @default(0)
+  processedItems Int       @default(0)
+  errorCount     Int       @default(0)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  errorMessage   String?
+  retryCount     Int       @default(0)
+  metadata       Json      @default("{}")
+  createdAt      DateTime  @default(now())
+
+  source Source? @relation(fields: [sourceId], references: [id])
+
+  @@index([status])
+  @@index([type])
+}
+
+model AppError {
+  id         String    @id @default(cuid())
+  component  String
+  message    String
+  context    Json      @default("{}")
+  severity   Severity  @default(ERROR)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([severity])
+  @@index([createdAt(sort: Desc)])
+}

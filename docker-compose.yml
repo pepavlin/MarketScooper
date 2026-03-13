@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketscooper-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: marketscooper
+      POSTGRES_PASSWORD: marketscooper
+      POSTGRES_DB: marketscooper
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketscooper"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
