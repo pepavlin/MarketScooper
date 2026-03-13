@@ -4,14 +4,16 @@ WORKDIR /app
 
 # Install dependencies
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
+# Ensure prisma engine binaries are available
+RUN npx prisma version > /dev/null 2>&1 || true
 
 # Development image
 FROM base AS dev
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm db:generate
+RUN npx prisma generate
 COPY scripts/docker-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 ARG PORT=3000
@@ -24,7 +26,7 @@ CMD ["pnpm", "dev"]
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm db:generate
+RUN npx prisma generate
 RUN pnpm build
 
 # Production image
