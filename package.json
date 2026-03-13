@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p ${PORT:-3000}",
+    "dev:setup": "prisma migrate deploy && pnpm db:seed; pnpm dev",
+    "db:setup": "prisma migrate deploy && pnpm db:seed",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
